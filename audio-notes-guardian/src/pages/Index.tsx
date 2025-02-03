@@ -4,7 +4,7 @@ import NoteCard from "@/components/NoteCard";
 import { ArrowDownAZ } from "lucide-react";
 import { Pencil, Image } from "lucide-react";
 import RecordButton from "@/components/RecordButton";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNotes } from '@/hooks/useNotes';
 interface RecordButtonProps {
 
@@ -17,6 +17,17 @@ const Index = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editingTranscript, setEditingTranscript] = useState('');
   const { notes, createNote, isLoading, isLoadingNotes, setSearchQuery } = useNotes();
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  const sortedNotes = useMemo(() => {
+    const sorted = [...notes];
+    if (sortOrder === 'asc') {
+      sorted.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    } else {
+      sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
+    return sorted;
+  }, [notes, sortOrder]);
 
   const handleTranscriptionEdit = (text: string) => {
     setEditingTranscript(text);
@@ -69,19 +80,22 @@ const Index = () => {
             <div className="w-full md:w-96">
               <SearchBar onSearch={setSearchQuery} />
             </div>
-            <button className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+            <button
+              className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+            >
               <ArrowDownAZ size={20} />
-              <span>Sort</span>
+              <span>Sort {sortOrder === 'asc' ? 'Oldest First' : 'Newest First'}</span>
             </button>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {isLoadingNotes ? (
               <div>Loading notes...</div>
-            ) : notes.length === 0 ? (
+            ) : sortedNotes.length === 0 ? (
               <div>No notes yet. Create your first note!</div>
             ) : (
-              notes.map((note) => (
+              sortedNotes.map((note) => (
                 <NoteCard 
                   key={note._id} // Change from id to _id
                   {...note}

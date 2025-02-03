@@ -1,14 +1,23 @@
 import express from 'express';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import path from 'path';
 import cors from 'cors';
 import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import noteRoutes from './routes/noteRoutes.js';
 import audioRoutes from './routes/audioRoutes.js';
 import { errorHandler } from './utils/errorHandler.js';
-import path from 'path';
 
+// Load env vars - this must be before importing any code that uses env vars
 dotenv.config();
+
+// Ensure MONGODB_URI exists
+if (!process.env.MONGODB_URI) {
+  console.error('Fatal Error: MONGODB_URI is not defined in environment variables');
+  process.exit(1);
+}
+
 connectDB();
 
 const app = express();

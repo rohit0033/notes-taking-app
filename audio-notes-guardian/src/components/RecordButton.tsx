@@ -1,5 +1,5 @@
 import { Mic, Save } from "lucide-react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useTranscription } from "../hooks/useTranscription";
 import { useNotes } from "../hooks/useNotes";
 import { toast } from "@/components/ui/use-toast";
@@ -17,6 +17,8 @@ const RecordButton = ({ onTranscriptionComplete, onTranscriptionEdit, editedText
   const [currentTranscript, setCurrentTranscript] = useState<string>('');
   const { startRecording, stopRecording, transcript, error } = useTranscription();
   const { createNote, isLoading: isNoteCreating } = useNotes();
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleToggleRecording = useCallback(async () => {
     if (!isRecording) {
@@ -24,6 +26,7 @@ const RecordButton = ({ onTranscriptionComplete, onTranscriptionEdit, editedText
         setIsRecording(true);
         const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         const mediaRecorder = new MediaRecorder(mediaStream);
+        mediaRecorderRef.current = mediaRecorder;
         const audioChunks: BlobPart[] = [];
 
         mediaRecorder.ondataavailable = (event) => {
@@ -37,6 +40,17 @@ const RecordButton = ({ onTranscriptionComplete, onTranscriptionEdit, editedText
 
         mediaRecorder.start();
         await startRecording();
+
+        // Automatically stop after 3 minutes
+        recordingTimeoutRef.current = setTimeout(() => {
+          if (mediaRecorderRef.current?.state === 'recording') {
+            mediaRecorderRef.current?.stop();
+            setIsRecording(false);
+            stopRecording().then((data) => {
+              if (data) onTranscriptionEdit(data.content);
+            });
+          }
+        }, 60000); // 3 minutes in ms
       } catch (err) {
         console.error('Failed to start recording:', err);
         toast({
@@ -47,6 +61,11 @@ const RecordButton = ({ onTranscriptionComplete, onTranscriptionEdit, editedText
       }
     } else {
       setIsRecording(false);
+      mediaRecorderRef.current?.stop();
+      if (recordingTimeoutRef.current) {
+        clearTimeout(recordingTimeoutRef.current);
+        recordingTimeoutRef.current = null;
+      }
       const noteData = await stopRecording();
       if (noteData) {
         setCurrentTranscript(noteData.content);
